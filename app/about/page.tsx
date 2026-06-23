@@ -90,7 +90,7 @@ export interface TechItem {
 }
 
 // Your existing tech stack (colors won't be used for icons now)
-const techStack = [...] // ← fine now: TechItem[] = [
+const techStack: TechItem[] = [
   // Web & Dev
   { name: "JavaScript", icon: SiJavascript, color: "#F7DF1E" },
   { name: "Python", icon: SiPython, color: "#3776AB" },
