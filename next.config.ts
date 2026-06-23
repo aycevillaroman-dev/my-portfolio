@@ -1,11 +1,6 @@
-import type { NextConfig } from "next";
 import withMDX from "@next/mdx";
 
-const mdx = withMDX({
-  extension: /\.mdx?$/,
-});
-
-const nextConfig: NextConfig = mdx({
+const nextConfig = {
   reactStrictMode: true,
   pageExtensions: ["ts", "tsx", "md", "mdx"],
   trailingSlash: true,
@@ -24,6 +19,6 @@ const nextConfig: NextConfig = mdx({
       },
     ];
   },
-});
+};
 
-export default nextConfig;
+export default withMDX()(nextConfig);

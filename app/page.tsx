@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import {
   ArrowRight,
   ArrowUp,
@@ -912,13 +911,12 @@ export default function HomePage() {
                       <span className={`font-mono text-[10px] px-2 py-1 tracking-widest border ${tagStyle}`}>
                         {project.tag}
                       </span>
-                      <Link
-                        href={project.liveProject}
-                        className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 group/link w-fit ${darkMode ? "text-white/30 hover:text-white" : "text-black/30 hover:text-black"}`}
-                      >
-                        View Project
-                        <ArrowRight size={10} className="transition-transform duration-200 group-hover/link:translate-x-1" />
-                      </Link>
+                      <a>
+href={project.liveProject ?? "#"}
+  className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 group/link w-fit ${darkMode ? "text-white/30 hover:text-white" : "text-black/30 hover:text-black"}`}
+  View Project
+  <ArrowRight size={10} className="transition-transform duration-200 group-hover/link:translate-x-1" />
+</a>
                     </div>
                   </div>
                 </motion.div>
