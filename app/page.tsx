@@ -16,8 +16,6 @@ import {
   Wrench,
   Users,
   ImageIcon,
-  MessageCircle,
-  Send,
   ChevronDown,
   Cpu,
   HardDrive,
@@ -298,6 +296,17 @@ const projects = [
   },
 ];
 
+// Mobile nav short labels (no truncation)
+const mobileNavLabels: Record<string, string> = {
+  "Background": "About",
+  "Projects": "Work",
+  "Skills": "Skills",
+  "Organizations": "Orgs",
+  "Gallery": "Gallery",
+  "Light Mode": "Theme",
+  "Dark Mode": "Theme",
+};
+
 // Main Page
 export default function HomePage() {
   const [darkMode, setDarkMode] = useState(true);
@@ -306,24 +315,18 @@ export default function HomePage() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{ role: "user" | "bot"; content: string }[]>([
-    { role: "bot", content: "👋 Hey! I'm Aaron's assistant. Ask me anything about his skills, projects, or experience." }
-  ]);
-  const [chatInput, setChatInput] = useState("");
-  const [isChatLoading, setIsChatLoading] = useState(false);
+  // Touch-active states for mobile hover replacements
+  const [activeProjectIndex, setActiveProjectIndex] = useState<number | null>(null);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{ src: string; caption: string } | null>(null);
   const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
   const [scheduleData, setScheduleData] = useState({ name: "", email: "", date: "", time: "", topic: "" });
   const [formStatus, setFormStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [footerCopyStatus, setFooterCopyStatus] = useState<string | null>(null);
-  const [hoveredProject, setHoveredProject] = useState<number | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const scheduleModalRef = useRef<HTMLDivElement>(null);
-  const chatModalRef = useRef<HTMLDivElement>(null);
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const sectionNavItems = [
     { id: "background", label: "Background" },
@@ -344,24 +347,45 @@ export default function HomePage() {
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
-  const iconClass = (id: string) =>
+  // Compute icon class inline so it's always fresh (fixes stale closure in mobile nav)
+  const getIconClass = (id: string) =>
     activeSection === id
       ? darkMode ? "text-white" : "text-black"
       : darkMode ? "text-gray-500" : "text-gray-400";
 
   const dockItems = [
-    { title: "Background", icon: <BookOpen size={18} className={iconClass("background")} />, href: "#background", onClick: scrollToSection("background") },
-    { title: "Projects", icon: <FolderOpen size={18} className={iconClass("projects")} />, href: "#projects", onClick: scrollToSection("projects") },
-    { title: "Skills", icon: <Wrench size={18} className={iconClass("skills")} />, href: "#skills", onClick: scrollToSection("skills") },
-    { title: "Organizations", icon: <Users size={18} className={iconClass("organizations")} />, href: "#organizations", onClick: scrollToSection("organizations") },
-    { title: "Gallery", icon: <ImageIcon size={18} className={iconClass("gallery")} />, href: "#gallery", onClick: scrollToSection("gallery") },
+    { title: "Background", icon: "background", href: "#background", onClick: scrollToSection("background") },
+    { title: "Projects", icon: "projects", href: "#projects", onClick: scrollToSection("projects") },
+    { title: "Skills", icon: "skills", href: "#skills", onClick: scrollToSection("skills") },
+    { title: "Organizations", icon: "organizations", href: "#organizations", onClick: scrollToSection("organizations") },
+    { title: "Gallery", icon: "gallery", href: "#gallery", onClick: scrollToSection("gallery") },
     {
       title: darkMode ? "Light Mode" : "Dark Mode",
-      icon: darkMode ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-gray-500" />,
+      icon: "theme",
       href: "#",
       onClick: (e?: React.MouseEvent) => { e?.preventDefault(); setDarkMode(!darkMode); },
     },
   ];
+
+  const getDockIcon = (iconKey: string, sectionId?: string) => {
+    const cls = sectionId ? getIconClass(sectionId) : "";
+    switch (iconKey) {
+      case "background": return <BookOpen size={18} className={cls} />;
+      case "projects": return <FolderOpen size={18} className={cls} />;
+      case "skills": return <Wrench size={18} className={cls} />;
+      case "organizations": return <Users size={18} className={cls} />;
+      case "gallery": return <ImageIcon size={18} className={cls} />;
+      case "theme": return darkMode
+        ? <Sun size={18} className="text-yellow-400" />
+        : <Moon size={18} className="text-gray-500" />;
+      default: return null;
+    }
+  };
+
+  const floatingDockItems = dockItems.map((item) => ({
+    ...item,
+    icon: getDockIcon(item.icon, item.icon !== "theme" ? item.title.toLowerCase() : undefined),
+  }));
 
   const organizations = [
     {
@@ -416,26 +440,6 @@ export default function HomePage() {
     set(text);
   };
 
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
-    const userMessage = chatInput.trim();
-    setChatInput("");
-    setChatMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    setIsChatLoading(true);
-    setTimeout(() => {
-      const responses = [
-        "Aaron's stack is React, Next.js, Node.js, and Flutter — full-stack web and mobile.",
-        "His projects include MindConnect (mental health), Plant.io (community), and KamayTeks (FSL accessibility).",
-        "He's currently interning at BMG Outsourcing Inc. as an IT Operations intern in Clark, Pampanga.",
-        "You can reach Aaron at ayce.villaroman@gmail.com or schedule a call through the contact form.",
-      ];
-      setChatMessages((prev) => [...prev, { role: "bot", content: responses[Math.floor(Math.random() * responses.length)] }]);
-      setIsChatLoading(false);
-    }, 900);
-  };
-
-  useEffect(() => { chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
   useEffect(() => { if (darkMode) document.documentElement.classList.add("dark"); else document.documentElement.classList.remove("dark"); }, [darkMode]);
 
   useEffect(() => {
@@ -460,15 +464,14 @@ export default function HomePage() {
     const handleClickOutside = (e: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) setShowContactModal(false);
       if (scheduleModalRef.current && !scheduleModalRef.current.contains(e.target as Node)) setShowScheduleModal(false);
-      if (chatModalRef.current && !chatModalRef.current.contains(e.target as Node)) setShowChatModal(false);
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setShowContactModal(false); setShowScheduleModal(false); setShowChatModal(false); setLightboxPhoto(null); setShowResumeModal(false); }
+      if (e.key === "Escape") { setShowContactModal(false); setShowScheduleModal(false); setLightboxPhoto(null); setShowResumeModal(false); }
     };
-    if (showContactModal || showScheduleModal || showChatModal) document.addEventListener("mousedown", handleClickOutside);
+    if (showContactModal || showScheduleModal) document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
     return () => { document.removeEventListener("mousedown", handleClickOutside); document.removeEventListener("keydown", handleEscape); };
-  }, [showContactModal, showScheduleModal, showChatModal]);
+  }, [showContactModal, showScheduleModal]);
 
   useEffect(() => { if (copiedText) { const t = setTimeout(() => setCopiedText(null), 2000); return () => clearTimeout(t); } }, [copiedText]);
   useEffect(() => { if (footerCopyStatus) { const t = setTimeout(() => setFooterCopyStatus(null), 2000); return () => clearTimeout(t); } }, [footerCopyStatus]);
@@ -535,34 +538,62 @@ export default function HomePage() {
     automation: projects.filter((p) => p.type === "automation").length,
   };
 
+  // Section id map for mobile nav
+  const sectionIdMap: Record<string, string> = {
+    "Background": "background",
+    "Projects": "projects",
+    "Skills": "skills",
+    "Organizations": "organizations",
+    "Gallery": "gallery",
+  };
+
   return (
     <div className={`font-sans min-h-screen flex flex-col transition-colors duration-500 pb-16 sm:pb-0 ${bg}`}>
 
-      {/* Floating Dock */}
+      {/* Floating Dock — desktop only */}
       <div className="hidden sm:flex fixed top-4 left-1/2 -translate-x-1/2 z-50">
         <FloatingDock
-          items={dockItems}
+          items={floatingDockItems}
           desktopClassName={darkMode ? "bg-[#111]/90 backdrop-blur-md border border-white/[0.08]" : "bg-white/90 backdrop-blur-md border border-black/[0.08]"}
           mobileClassName={darkMode ? "bg-[#111]/90 backdrop-blur-md border border-white/[0.08]" : "bg-white/90 backdrop-blur-md border border-black/[0.08]"}
         />
       </div>
 
-      {/* Mobile nav */}
+      {/* Mobile bottom nav — fixed labels, active section highlights, no truncation */}
       <div className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t ${darkMode ? "bg-[#0a0a0a]/95 backdrop-blur-md border-white/[0.08]" : "bg-white/95 backdrop-blur-md border-black/[0.08]"}`}>
-        <div className="flex items-center justify-around px-2 py-2">
-          {dockItems.map((item, i) => (
-            <button
-              key={i}
-              onClick={(e) => item.onClick?.(e)}
-              title={item.title}
-              className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all duration-200 min-w-0 ${darkMode ? "hover:bg-white/[0.06] active:bg-white/[0.1]" : "hover:bg-black/[0.04] active:bg-black/[0.08]"}`}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              <span className={`font-mono text-[8px] uppercase tracking-wider leading-none truncate max-w-[48px] ${darkMode ? "text-white/30" : "text-black/30"}`}>
-                {item.title === "Light Mode" || item.title === "Dark Mode" ? "Theme" : item.title}
-              </span>
-            </button>
-          ))}
+        <div className="flex items-center justify-around px-1 py-2">
+          {dockItems.map((item, i) => {
+            const sectionId = sectionIdMap[item.title];
+            const isActive = sectionId ? activeSection === sectionId : false;
+            const isTheme = item.icon === "theme";
+            return (
+              <button
+                key={i}
+                onClick={(e) => item.onClick?.(e)}
+                title={item.title}
+                className={`flex flex-col items-center gap-1 px-1.5 py-1.5 rounded-lg transition-all duration-200 flex-1 min-w-0 ${darkMode ? "active:bg-white/[0.1]" : "active:bg-black/[0.08]"}`}
+              >
+                <span className="flex-shrink-0">
+                  {getDockIcon(item.icon, sectionId)}
+                </span>
+                <span
+                  className={`font-mono text-[9px] uppercase tracking-wide leading-none whitespace-nowrap transition-colors duration-200 ${
+                    isTheme
+                      ? darkMode ? "text-yellow-400/70" : "text-gray-400"
+                      : isActive
+                        ? darkMode ? "text-white" : "text-black"
+                        : darkMode ? "text-white/30" : "text-black/30"
+                  }`}
+                >
+                  {mobileNavLabels[item.title] ?? item.title}
+                </span>
+                {/* Active indicator dot */}
+                {isActive && (
+                  <span className={`w-1 h-1 rounded-full mt-0.5 ${darkMode ? "bg-white" : "bg-black"}`} />
+                )}
+              </button>
+            );
+          })}
         </div>
         <div className="h-safe-bottom" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </div>
@@ -865,63 +896,67 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* Grid */}
+            {/* Grid — touch-friendly: tap to reveal overlay, tap again or tap link to navigate */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px border border-r-0 border-b-0" style={{ borderColor: darkMode ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }}>
-              {filteredProjects.map((project, index) => (
-                <motion.div
-                  key={project.index}
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.06 }}
-                  className={`group relative flex flex-col border-r border-b overflow-hidden transition-all duration-300 ${darkMode ? "border-white/[0.07] bg-[#080808] hover:bg-white/[0.03]" : "border-black/[0.07] bg-[#fafafa] hover:bg-black/[0.02]"}`}
-                  onMouseEnter={() => setHoveredProject(index)}
-                  onMouseLeave={() => setHoveredProject(null)}
-                >
-                  <div className={`aspect-[4/3] overflow-hidden relative flex items-center justify-center ${darkMode ? "bg-[#0d0d0d]" : "bg-[#f0f0f0]"}`}>
-                    {project.image ? (
-                      <img
-                        src={project.image}
-                        alt={project.title}
-                        className="w-full h-full object-contain transition-all duration-700 grayscale group-hover:grayscale-0 group-hover:scale-[1.02]"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 opacity-20">
-                        <FolderOpen size={64} strokeWidth={1} />
-                      </div>
-                    )}
+              {filteredProjects.map((project, index) => {
+                const isTouchActive = activeProjectIndex === index;
+                return (
+                  <motion.div
+                    key={project.index}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.06 }}
+                    className={`group relative flex flex-col border-r border-b overflow-hidden transition-all duration-300 ${darkMode ? "border-white/[0.07] bg-[#080808]" : "border-black/[0.07] bg-[#fafafa]"} ${isTouchActive ? darkMode ? "bg-white/[0.03]" : "bg-black/[0.02]" : ""}`}
+                    onMouseEnter={() => setActiveProjectIndex(index)}
+                    onMouseLeave={() => setActiveProjectIndex(null)}
+                    onTouchStart={() => setActiveProjectIndex(isTouchActive ? null : index)}
+                  >
+                    <div className={`aspect-[4/3] overflow-hidden relative flex items-center justify-center ${darkMode ? "bg-[#0d0d0d]" : "bg-[#f0f0f0]"}`}>
+                      {project.image ? (
+                        <img
+                          src={project.image}
+                          alt={project.title}
+                          className={`w-full h-full object-contain transition-all duration-700 ${isTouchActive ? "grayscale-0 scale-[1.02]" : "grayscale group-hover:grayscale-0 group-hover:scale-[1.02]"}`}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 opacity-20">
+                          <FolderOpen size={64} strokeWidth={1} />
+                        </div>
+                      )}
 
-                    {activeProjectFilter === "all" && (
-                      <div className="absolute top-2 left-3 flex items-baseline leading-none select-none" style={{ fontSize: "clamp(2.8rem, 6.5vw, 4.5rem)" }}>
-                        <span className={`font-black tracking-tighter ${darkMode ? "text-white" : "text-black"}`}>
-                          {project.index[0]}
-                        </span>
-                        <span className={`font-black tracking-tighter ${darkMode ? "text-white/15" : "text-black/12"}`}>
-                          {project.index[1]}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-6 flex flex-col flex-1">
-                    <span className={`font-mono text-[10px] uppercase tracking-widest mb-2 ${muted}`}>{project.subtitle}</span>
-                    <h3 className="text-lg font-black tracking-tight mb-2">{project.title}</h3>
-                    <p className={`text-xs leading-relaxed flex-1 mb-4 ${mutedText}`}>{project.description}</p>
-                    <div className="flex items-center justify-between mt-auto">
-                      <span className={`font-mono text-[10px] px-2 py-1 tracking-widest border ${tagStyle}`}>
-                        {project.tag}
-                      </span>
-                      <a
-                        href={project.liveProject ?? "#"}
-                        className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 group/link w-fit ${darkMode ? "text-white/30 hover:text-white" : "text-black/30 hover:text-black"}`}
-                      >
-                        View Project
-                        <ArrowRight size={10} className="transition-transform duration-200 group-hover/link:translate-x-1" />
-                      </a>
+                      {activeProjectFilter === "all" && (
+                        <div className="absolute top-2 left-3 flex items-baseline leading-none select-none" style={{ fontSize: "clamp(2.8rem, 6.5vw, 4.5rem)" }}>
+                          <span className={`font-black tracking-tighter ${darkMode ? "text-white" : "text-black"}`}>
+                            {project.index[0]}
+                          </span>
+                          <span className={`font-black tracking-tighter ${darkMode ? "text-white/15" : "text-black/12"}`}>
+                            {project.index[1]}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+
+                    <div className="p-6 flex flex-col flex-1">
+                      <span className={`font-mono text-[10px] uppercase tracking-widest mb-2 ${muted}`}>{project.subtitle}</span>
+                      <h3 className="text-lg font-black tracking-tight mb-2">{project.title}</h3>
+                      <p className={`text-xs leading-relaxed flex-1 mb-4 ${mutedText}`}>{project.description}</p>
+                      <div className="flex items-center justify-between mt-auto">
+                        <span className={`font-mono text-[10px] px-2 py-1 tracking-widest border ${tagStyle}`}>
+                          {project.tag}
+                        </span>
+                        <a
+                          href={project.liveProject ?? "#"}
+                          className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 group/link w-fit ${darkMode ? "text-white/30 hover:text-white" : "text-black/30 hover:text-black"}`}
+                        >
+                          View Project
+                          <ArrowRight size={10} className="transition-transform duration-200 group-hover/link:translate-x-1" />
+                        </a>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -1023,27 +1058,33 @@ export default function HomePage() {
               <h2 className={displayHeading}>Gallery</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              {galleryPhotos.map((photo, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.07 }}
-                  className={`relative group cursor-pointer overflow-hidden aspect-[3/4] ${darkMode ? "bg-[#0d0d0d]" : "bg-[#f0f0f0]"}`}
-                  onClick={() => setLightboxPhoto({ src: photo.src, caption: photo.caption })}
-                >
-                  <img
-                    src={photo.src}
-                    alt={photo.caption}
-                    className="w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0 group-hover:scale-[1.02]"
-                  />
-                  <div className={`absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${darkMode ? "bg-gradient-to-t from-black/70 to-transparent" : "bg-gradient-to-t from-white/70 to-transparent"}`}>
-                    <span className={`font-mono text-[9px] uppercase tracking-widest ${tagStyle} w-fit px-2 py-0.5 mb-1.5`}>{photo.tag}</span>
-                    <p className={`font-mono text-[10px] ${darkMode ? "text-white/80" : "text-black/80"}`}>{photo.caption}</p>
-                  </div>
-                </motion.div>
-              ))}
+              {galleryPhotos.map((photo, index) => {
+                const isGalleryActive = activeGalleryIndex === index;
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.07 }}
+                    className={`relative group cursor-pointer overflow-hidden aspect-[3/4] ${darkMode ? "bg-[#0d0d0d]" : "bg-[#f0f0f0]"}`}
+                    onMouseEnter={() => setActiveGalleryIndex(index)}
+                    onMouseLeave={() => setActiveGalleryIndex(null)}
+                    onTouchStart={() => setActiveGalleryIndex(isGalleryActive ? null : index)}
+                    onClick={() => setLightboxPhoto({ src: photo.src, caption: photo.caption })}
+                  >
+                    <img
+                      src={photo.src}
+                      alt={photo.caption}
+                      className={`w-full h-full object-cover transition-all duration-700 ${isGalleryActive ? "grayscale-0 scale-[1.02]" : "grayscale group-hover:grayscale-0 group-hover:scale-[1.02]"}`}
+                    />
+                    <div className={`absolute inset-0 flex flex-col justify-end p-4 transition-opacity duration-300 ${isGalleryActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"} ${darkMode ? "bg-gradient-to-t from-black/70 to-transparent" : "bg-gradient-to-t from-white/70 to-transparent"}`}>
+                      <span className={`font-mono text-[9px] uppercase tracking-widest ${tagStyle} w-fit px-2 py-0.5 mb-1.5`}>{photo.tag}</span>
+                      <p className={`font-mono text-[10px] ${darkMode ? "text-white/80" : "text-black/80"}`}>{photo.caption}</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -1100,88 +1141,6 @@ export default function HomePage() {
               <img src={lightboxPhoto.src} alt={lightboxPhoto.caption} className="w-full h-auto max-h-[80vh] object-contain" />
               <p className={`font-mono text-[10px] uppercase tracking-widest mt-4 text-center ${muted}`}>{lightboxPhoto.caption}</p>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Chat Modal */}
-      <AnimatePresence>
-        {showChatModal && (
-          <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.96 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 sm:bottom-6"
-          >
-            <div
-              ref={chatModalRef}
-              className={`relative w-[360px] h-[480px] flex flex-col shadow-2xl border overflow-hidden ${darkMode ? "bg-[#0a0a0a] border-white/[0.08]" : "bg-white border-black/[0.08]"}`}
-            >
-              <div className={`flex items-center justify-between px-4 py-3 border-b ${borderColor} flex-shrink-0`}>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className={`w-8 h-8 flex items-center justify-center border ${borderColor} ${cardBg}`}>
-                      <MessageCircle size={14} className={muted} />
-                    </div>
-                    <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#0a0a0a]" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold tracking-tight">AC's Assistant</h3>
-                    <span className={`text-[9px] font-mono ${muted}`}>Online · Powered by AI</span>
-                  </div>
-                </div>
-                <button onClick={() => setShowChatModal(false)} className={`${muted} hover:text-white transition-colors`}><X size={16} /></button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-                {chatMessages.map((msg, index) => (
-                  <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] px-3.5 py-2 text-xs leading-relaxed ${
-                      msg.role === "user"
-                        ? darkMode ? "bg-white text-black" : "bg-black text-white"
-                        : `border ${borderColor} ${cardBg} ${mutedText}`
-                    }`}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-                {isChatLoading && (
-                  <div className="flex justify-start">
-                    <div className={`px-3.5 py-2 border ${borderColor} ${cardBg}`}>
-                      <span className="flex gap-1.5 items-center">
-                        {[0, 0.2, 0.4].map((d, i) => (
-                          <motion.span key={i} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: d }} className={`w-1 h-1 rounded-full ${darkMode ? "bg-white/40" : "bg-black/40"}`} />
-                        ))}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatMessagesEndRef} />
-              </div>
-
-              <form onSubmit={handleChatSubmit} className={`flex items-center gap-2 p-3 border-t ${borderColor} flex-shrink-0`}>
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask me anything..."
-                  className={`flex-1 px-3 py-2 text-xs border transition-all duration-200 focus:outline-none ${inputBase}`}
-                  disabled={isChatLoading}
-                />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim() || isChatLoading}
-                  className={`p-2 border transition-all duration-200 flex-shrink-0 ${
-                    !chatInput.trim() || isChatLoading
-                      ? `${borderColor} ${muted} cursor-not-allowed`
-                      : darkMode ? "border-white/20 text-white hover:bg-white/10" : "border-black/20 text-black hover:bg-black/10"
-                  }`}
-                >
-                  <Send size={14} />
-                </button>
-              </form>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1345,29 +1304,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-
-      {/* Floating Chat Bubble */}
-      <AnimatePresence>
-        {!showChatModal && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setShowChatModal(true)}
-            aria-label="Chat with AC"
-            className={`fixed bottom-6 right-6 z-40 sm:bottom-6 flex items-center gap-2.5 px-4 py-3 border shadow-lg transition-all duration-200 ${darkMode ? "bg-[#0a0a0a] border-white/[0.12] text-white/60 hover:text-white hover:border-white/30" : "bg-white border-black/[0.12] text-black/60 hover:text-black hover:border-black/30"}`}
-          >
-            <MessageCircle size={15} />
-            <span className="font-mono text-[10px] uppercase tracking-widest">Chat with AC</span>
-            <motion.span
-              animate={{ opacity: [1, 0.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"
-            />
-          </motion.button>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
